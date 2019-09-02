@@ -1,0 +1,5 @@
+# List all dependencies of EdrixsRub
+numpy
+sympy
+scipy
+matplotlib
