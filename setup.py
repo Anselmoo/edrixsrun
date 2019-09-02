@@ -10,13 +10,17 @@ try:
 except ImportError:
     from distutils.core import setup
 
-setup(
-	name='EdrixsRun',
-	version='0.5',
-	packages=['tests','EdrixsRun'],
-	url='',
-	license='MIT',
-	author='hahn',
-	author_email='Anselm.Hahn@gmail.com',
-	description='Command Line tool for the NSLS-II edrixs libaries'
-)
+def main():
+	setup(
+		name='EdrixsRun',
+		version='0.5',
+		packages=['tests','EdrixsRun'],
+		url='',
+		license='MIT',
+		author='hahn',
+		author_email='Anselm.Hahn@gmail.com',
+		description='Command Line tool for the NSLS-II edrixs libaries'
+	)
+
+if __name__ == '__main__':
+	main()
