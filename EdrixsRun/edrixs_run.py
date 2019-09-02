@@ -763,7 +763,7 @@ class RIXS_XAS_XES_2p3d(object):
                                 ((self.xesen - (self.eval_i[n] - self.eval_i[igs])) ** 2 + gamma_final ** 2)
                         )
 
-    def run(self):
+    def run_rixs(self):
         # Pseudo run function, has to be adapted for real cases
         print("edrixs >>> Running One-Electron-Part ...")
         self.one_electron_part()
@@ -910,7 +910,7 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d):
                     self.omega = [eval(vals[0]), eval(vals[1]), int(eval(vals[2]))]
                     self.shift[0] = eval(vals[3])
                     print("The Absorption-Band\n"
-                          "\tmin(abs)>>> {:4.3f} eV\n"
+                          "\tmin(abs) >>> {:4.3f} eV\n"
                           "\tmax(abs) >>> {:4.3f} eV\n"
                           "\tsteps >>> {} \n"
                           "\tAbsorption-Shift >>> {:4.3f} eV\n".format(np.min(self.xasen), np.max(self.xasen),
@@ -924,7 +924,7 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d):
                     self.eloss = [eval(vals[0]), eval(vals[1]), int(eval(vals[2]))]
                     self.shift[1] = eval(vals[3])
                     print("The Emission-Band\n"
-                          "\tmin(ems)>>> {:4.3f} eV\n"
+                          "\tmin(ems) >>> {:4.3f} eV\n"
                           "\tmax(ems) >>> {:4.3f} eV\n"
                           "\tsteps >>> {} \n"
                           "\tEmission-Shift >>> {:4.3f} eV\n".format(np.min(self.xesen), np.max(self.xesen),
@@ -995,7 +995,7 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d):
                                                    temperature=self.temperature, thin=self.thin, phi=self.phi,
                                                    pwfc=self.args.wave, fname=fname))
             print("edrixs >>> Setting-Up the Variables Done!")
-            self.run()  # Run the one-, two-, and Dipole-part
+            self.run_rixs()  # Run the one-, two-, and Dipole-part
             # Checking which transition-integrals has to be calculated
             for key in self.mode:
                 if key == 'xas':
