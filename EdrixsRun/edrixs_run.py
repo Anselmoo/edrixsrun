@@ -65,6 +65,158 @@ def trans_mat(X, dtype=np.complex):
     elif len(X) == 3:
         return np.zeros((X[0], X[1], X[2]), dtype=dtype)
 
+class TanabeSugano(object):
+    def __init__(self, F2_dd=0., F4_dd=0., zeta_d=0., sym=['Oh', 0.,1.,100], d=9, ext_B=[0., 0., 0.], fname='RIXS.input'):
+        # 1-10: 3d-transition-metal valence orbitals
+        # 11-16: 2p-transition-metal core orbitals
+        # Single particle basis: complex shperical Harmonics
+        self.ndorb = 10  # 5 Alpha, 5 Beta of the 3d-shell
+
+
+        # Defining the empty model-Hamiltonian-matrix
+        self.emat_i = compl_mat(X=self.ndorb)  # Init-State
+
+        # 4-index Coulomb interaction tensor, parameterized by
+        # Slater integrals, which are obtained from Cowan's code
+        # Averaged dd Coulomb interaction is set to be zero
+        # Defining the 3d-repulsion integrals, which can also come
+        # from the Racah-parameters A,B,C
+        # Init-State
+        self.F0_dd_i = edrixs.get_F0('d', F2_dd, F4_dd)
+        self.F2_dd_i = F2_dd
+        self.F4_dd_i = F4_dd
+
+
+        # Atomic spin-orbit coupling and external B-field for XMCD
+        # Init-State
+        self.zeta_d_i = zeta_d
+        self.ext_B = ext_B  # For XMCD
+
+        # Crystal-field-tensor
+        self.cryst = compl_mat(X=5)
+        self.sym = sym  # Crystal-field symmetry as list ['Sp']
+        self.d = d  # Number of d-electrons
+
+        # Two-electron-Components
+        self.umat_i = compl_mat(X=self.ndorb, dim=4)
+
+        # Multi-reference basis
+        init_states = int(binom(self.ndorb, self.d))
+        self.basis_i = trans_mat(X=[init_states])  # Init-State
+        self.ncfg_i = len(self.basis_i)  # Number of Inital-State CSF
+
+        # Eigenvalues of the Manybody-Hamiltonian as float
+        self.eval_i = compl_mat(X=init_states, dim=1, dtype=np.float64)  # Init-State
+        self.evec_i = compl_mat(X=init_states, dtype=np.float64)  # Init-State
+
+        # Input-Parameters from the terminal
+        self.fname = fname
+
+
+    def one_electron_part(self):
+        """
+        Solving the one- and pseudo-one-electron problems
+        1. SOC
+        2. Crystalfield
+
+        Parameters
+        ----------
+        self.zeta_d: float-list
+            SOC of the d-shell for init- and final-state
+
+        self.ext_B: float list
+            external B-field with B_x, B_y, B_z
+
+        Returns
+        -------
+        self.emat_i: 2d complex array
+            The model-Hamiltonian-matrix of the init-state
+
+        self.emat_n: 2d complex array
+            The model-Hamiltonian-matrix of the final-state
+
+        """
+        if self.zeta_d_i > 0:
+            # Atomic spin-orbit coupling of the inital-state 2p6-3dn and the final-state 2p5-3dn+1
+            self.emat_i[0:self.ndorb, 0:self.ndorb] += edrixs.atom_hsoc('d', self.zeta_d_i)  # Init-State
+
+        # Real cubic Harmonics basis will be created for symmetry or real Atomic-Orbital energy for init-state
+        # Real cubic Harmonics basis will be transformed to complex shperical Harmonics basis for init-state
+        self.cryst[:, :] = edrixs.cb_op(self.cryst, edrixs.tmat_r2c('d'))  # Setting-up the crystal-field tensor for init-state
+        self.emat_i[0:self.ndorb:2, 0:self.ndorb:2] += self.cryst
+        self.emat_i[1:self.ndorb:2, 1:self.ndorb:2] += self.cryst
+        # Real cubic Harmonics basis will be created for symmetry or real Atomic-Orbital energy for init-state
+
+        # external magnetic field for XMCD and RIXS-XMCD
+        if np.sum(self.ext_B) != 0.:
+            # Setting up the angular-momentum and spin
+            # This is copied from solvers.py, probably wrong for final-state
+            v_orbl = 2  # for 3d-shell
+            lx, ly, lz = edrixs.get_lx(v_orbl, True), edrixs.get_ly(v_orbl, True), edrixs.get_lz(v_orbl, True)
+            sx, sy, sz = edrixs.get_sx(v_orbl), edrixs.get_sy(v_orbl), edrixs.get_sz(v_orbl)
+            zeeman = self.ext_B[0] * (lx + 2 * sx) + self.ext_B[1] * (ly + 2 * sy) + self.ext_B[2] * (lz + 2 * sz)
+            self.emat_i[0:self.ndorb, 0:self.ndorb] += zeeman
+
+    def two_electron_part(self):
+        """
+        Creating an empty complex 2D-matrix
+
+        Parameters
+        ----------
+        Slater-Condon-parameters for the electronic repulsion between the 3d-shell and 2p3d-shell:
+
+        self.F0_d: float-list
+            for init- and final-state
+        self.F2_d: float-list
+            for init- and final-state
+        self.F4_d: float-list
+            for init- and final-state
+
+
+        self.d: int
+            Number of d-electrons
+
+        Returns
+        -------
+        self.eval_i: 2d float array
+            The calculated energies of the initial-state
+
+         self.basis_i: 1d float array
+            The Fock basis of the initial-state
+        """
+        # Part-1
+        # Calculate the Coulomb interaction tensor which is parameterized by
+        # Slater integrals F and G for the 3d- and 2p3d-shell repulsion
+        # Init-State meaing 3dn
+        self.umat_i = edrixs.get_umat_slater('d', self.F0_dd_i, self.F2_dd_i, self.F4_dd_i)  # dd
+
+        # Part-2
+        # Build Fock basis in its binary form
+        # Converting the list into a real numpy-array as designed
+        # Ground-State wavefunction
+        self.basis_i = np.asarray(edrixs.get_fock_bin_by_N(self.ndorb, self.d))
+        # Substracting an e- from the p-shell (2p5) and add it to the d-shell (dn+1)
+
+        # Part-3
+        # Build many-body Hamiltonian in Fock basis
+        hmat_i = compl_mat(X=self.ncfg_i)
+        hmat_i[:, :] += edrixs.two_fermion(self.emat_i, self.basis_i)
+        hmat_i[:, :] += edrixs.four_fermion(self.umat_i, self.basis_i)
+
+        # Part-4
+
+        # Do exact-diagonalization to get eigenvalues and eigenvectors
+        # With eigh an ascending ordering is introduced, but values are given in real space as float
+        self.eval_i, self.evec_i = np.linalg.eigh(hmat_i)
+
+    def run_tanabe(self):
+        self.cryst = edrixs.crystalfield_symmetry(sym=['Sp'])
+        self.one_electron_part()
+        self.two_electron_part()
+
+
+
+
 
 class RIXS_XAS_XES_2p3d(object):
     """
@@ -136,7 +288,7 @@ class RIXS_XAS_XES_2p3d(object):
 
         # Eigenvalues of the Manybody-Hamiltonian as float
         self.eval_i = compl_mat(X=init_states, dim=1, dtype=np.float64)  # Init-State
-        self.evec_i = compl_mat(X=final_states, dtype=np.float64)  # Init-State
+        self.evec_i = compl_mat(X=init_states, dtype=np.float64)  # Init-State
         self.eval_n = compl_mat(X=final_states, dim=1, dtype=np.float64)  # Final-State
         self.evec_n = compl_mat(X=final_states, dtype=np.float64)  # Final-State
 
@@ -776,7 +928,7 @@ class RIXS_XAS_XES_2p3d(object):
         print("edrixs >>> Dipole-moments Done!")
 
 
-class Read_Run_Plot(RIXS_XAS_XES_2p3d):
+class Read_Run_Plot(RIXS_XAS_XES_2p3d,TanabeSugano):
     def __init__(self):
         super().__init__()
         self.inputs = {}
@@ -1056,7 +1208,8 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d):
 
 
 if __name__ == '__main__':
-    Read_Run_Plot().input_read()
+    TanabeSugano().run_tanabe()
+    #Read_Run_Plot().input_read()
     # RIXS = RIXS_XAS_XES_2p3d(F2_dd=[5.67,5.87],F4_dd=[4.6,4.8],F2_dp=7.446, G1_dp=5.566,
     #                         G3_dp=3.16,zeta_d=[.054,0.06], zeta_p=8.199
     #                         ,sym=[['Oh',1.47/10],['Oh',1.67/10]],d=9,ext_B=[0.5,0,0]
