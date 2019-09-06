@@ -873,7 +873,7 @@ def crystalfield_symmetry(sym):
         cryst[4, 4] = 0.  # dz2
     elif sym[0] == 'Oh' and len(sym) == 2:
         # Octahedral symmetry
-        dq, dt, ds = sym[1] / 10
+        dq = sym[1] / 10
         cryst[0, 0] = - 4 * dq  # dxy
         cryst[1, 1] = - 4 * dq  # dxz
         cryst[2, 2] = - 4 * dq  # dyz
@@ -881,7 +881,7 @@ def crystalfield_symmetry(sym):
         cryst[4, 4] = + 6 * dq  # dz2
     elif sym[0] == 'Td' and len(sym) == 2:
         # Tetrahedal symmetry
-        dq, dt, ds = -sym[1] / 10
+        dq = -sym[1] / 10
         cryst[0, 0] = - 4 * dq  # dxy
         cryst[1, 1] = - 4 * dq  # dxz
         cryst[2, 2] = - 4 * dq  # dyz
