@@ -210,9 +210,10 @@ class TanabeSugano(object):
         self.eval_i, self.evec_i = np.linalg.eigh(hmat_i)
 
     def run_tanabe(self):
-        self.cryst = edrixs.crystalfield_symmetry(sym=['Sp'])
+        self.cryst = edrixs.crystalfield_symmetry(sym=['Oh',1.])
         self.one_electron_part()
         self.two_electron_part()
+        print(self.eval_i)
 
 
 
@@ -951,11 +952,11 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d,TanabeSugano):
         print("\nedrixs >>> Reading Input ...")
         try:
             for key, vals in self.inputs.items():
-                if key == 'electrons':
+                if key.lower() == 'electrons':
                     # Number of d-electrons
                     self.d = int(vals[0])
                     print("Number of electrons >>> {}\n".format(self.d))
-                if key == 'symmetry':
+                if key.lower() == 'symmetry':
                     """
                     This evaluator is incomplete because it's only optimized for Oh
                     """
@@ -1003,57 +1004,57 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d,TanabeSugano):
                         print("Wrong Definition of the Crystal-Field! ")
 
 
-                if key == 'f2_dd':
+                if key.lower() == 'f2_dd':
                     # Slater-Condon
                     self.F2_dd_i, self.F2_dd_n = eval(vals[0]), eval(vals[1])
                     print("The Slater-Condon-Parameter of "
                           "F2_dd\n"
                           "\tinit-state >>> {:2.5f} eV\n"
                           "\texcited-state >>> {:2.5f} eV\n".format(self.F2_dd_i, self.F2_dd_n))
-                if key == 'f4_dd':
+                if key.lower() == 'f4_dd':
                     # Slater-Condon
                     self.F4_dd_i, self.F4_dd_n = eval(vals[0]), eval(vals[1])
                     print("The Slater-Condon-Parameter of "
                           "F4_dd\n"
                           "\tinit-state >>> {:2.5f} eV\n"
                           "\texcited-state >>> {:2.5f} eV\n".format(self.F4_dd_i, self.F4_dd_n))
-                if key == 'f2_dp':
+                if key.lower() == 'f2_dp':
                     # Slater-Condon
                     self.F2_dp = eval(vals[0])
                     print("The Slater-Condon-Parameter of "
                           "F2_dp >>> {:2.5f} eV\n".format(self.F2_dp))
-                if key == 'g3_dp':
+                if key.lower() == 'g3_dp':
                     # Slater-Condon
                     self.G3_dp = eval(vals[0])
                     print("The Slater-Condon-Parameter of "
                           "G3_dp >>> {:2.5f} eV\n".format(self.G3_dp))
-                if key == 'g1_dp':
+                if key.lower() == 'g1_dp':
                     # Slater-Condon
                     self.G1_dp = eval(vals[0])
                     print("The Slater-Condon-Parameter of "
                           "G1_dp >>> {:2.5f} eV\n".format(self.G1_dp))
-                if key == 'soc_d':
+                if key.lower() == 'soc_d':
                     # SOC
                     self.zeta_d_i, self.zeta_d_n = eval(vals[0]), eval(vals[1])
                     print("The nd-SOC-Parameter\n"
                           "\tinit-state >>> {:2.5f} eV\n"
                           "\texcited-state >>> {:2.5f} eV\n".format(self.zeta_d_i, self.zeta_d_n))
-                if key == 'soc_p':
+                if key.lower() == 'soc_p':
                     # SOC
                     self.zeta_p = eval(vals[0])
                     print("The mp-SOC-Parameter >>> {:2.5f} eV\n".format(self.zeta_p))
-                if key == 'b':
+                if key.lower() == 'b':
                     # B-field for XMCD and RIXSXMCD
                     self.ext_B = [eval(vals[0]), eval(vals[1]), eval(vals[2])]
                     print("The magnetic B-field\n"
                           "\tx-axis >>> {:2.3f} T\n"
                           "\ty-axis >>> {:2.3f} T\n"
                           "\tz-axis >>> {:2.3f} T\n".format(self.ext_B[0], self.ext_B[1], self.ext_B[2]))
-                if key == 'k':
+                if key.lower() == 'k':
                     # Temperature for Boltzmann-distribution
                     self.temperature = eval(vals[0])
                     print("Temperature >>> {:4.2f} K\n".format(self.temperature))
-                if key == 'abs':
+                if key.lower() == 'abs':
                     """
                     Parameter for the Absorption(XAS)-Plot
                     First three inputs for the energy-band
@@ -1067,7 +1068,7 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d,TanabeSugano):
                           "\tsteps >>> {} \n"
                           "\tAbsorption-Shift >>> {:4.3f} eV\n".format(np.min(self.xasen), np.max(self.xasen),
                                                                        self.xasen.size, self.shift[0]))
-                if key == 'ems':
+                if key.lower() == 'ems':
                     """
                     Parameter for the Emission(XES)-Plot
                     First three inputs for the energy-band
@@ -1081,22 +1082,22 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d,TanabeSugano):
                           "\tsteps >>> {} \n"
                           "\tEmission-Shift >>> {:4.3f} eV\n".format(np.min(self.xesen), np.max(self.xesen),
                                                                      self.xesen.size, self.shift[1]))
-                if key == 'fhmw':
+                if key.lower() == 'fhmw':
                     # Defining the FHMW-broadering
                     self.gamma = [eval(vals[0]), eval(vals[1])]
                     print("The FHMW-Broadering\n"
                           "\tXAS-Broadering >>> {:2.3f} eV\n"
                           "\tXES-Broadering >>> {:2.3f} eV\n".format(self.gamma_c, self.gamma_f))
-                if key == 'alpha':
+                if key.lower() == 'alpha':
                     self.thin = np.radians(eval(vals[0]))
                     print("The incoming-angle "
                           "Alpha >>> {:3.2f}\n".format(np.degrees(self.thin)))
-                if key == 'phi':
+                if key.lower() == 'phi':
                     self.phi = np.radians(eval(vals[0]))
                     print("The outgoing-angle "
                           "Phi >>> {:3.2f}\n".format(np.degrees(self.phi)))
-                if key == 'xas' and bool(vals[0]):
-                    self.mode.append(key)
+                if key.lower() == 'xas' and bool(vals[0]):
+                    self.mode.append(key.lower())
                     print('XAS-modul is >>> on')
                     if vals[1:] != []:
                         print('\t!Polarization-effect are turned on!')
@@ -1106,8 +1107,8 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d,TanabeSugano):
                     else:
                         self.xas_pol_type.append(('isotropic', 0))
                         print('\t', self.xas_pol_type)
-                if key == 'xes' and bool(vals[0]):
-                    self.mode.append(key)
+                if key.lower() == 'xes' and bool(vals[0]):
+                    self.mode.append(key.lower())
                     print('XES-modul is >>> on')
                     if vals[1:] != []:
                         print('\t!Polarization-effect are turned on!')
@@ -1117,8 +1118,8 @@ class Read_Run_Plot(RIXS_XAS_XES_2p3d,TanabeSugano):
                     else:
                         self.xes_pol_type.append(('isotropic', 0))
                         print('\t', self.xes_pol_type)
-                if key == 'rixs' and bool(vals[0]):
-                    self.mode.append(key)
+                if key.lower() == 'rixs' and bool(vals[0]):
+                    self.mode.append(key.lower())
                     print('RIXS-modul is >>> on')
                     if vals[1:] != []:
                         print('\t!Polarization-effect are turned on!')
