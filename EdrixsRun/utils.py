@@ -2,7 +2,7 @@ __all__ = ['beta_to_kelvin', 'kelvin_to_beta', 'boltz_dist', 'UJ_to_UdJH',
            'UdJH_to_UJ', 'UdJH_to_F0F2F4', 'UdJH_to_F0F2F4F6', 'F0F2F4_to_UdJH',
            'F0F2F4_to_UJ', 'F0F2F4F6_to_UdJH', 'info_atomic_shell',
            'case_to_shell_name', 'edge_to_shell_name', 'slater_integrals_name',
-           'get_atom_data', 'rescale']
+           'get_atom_data', 'rescale','racah_to_slater','slater_to_racah','eV_to_cm','cm_to_eV','crystalfield_symmetry']
 
 import numpy as np
 import json
@@ -770,6 +770,25 @@ def rescale(old_list, scale=None):
             new_list[pos] = new_list[pos] * val
     return new_list
 
+def slater_to_racah(slater):
+    """
+    Transform the Slater-Condon-Parameter F_2 and F_4 to the Rach-Parameter B and C
+    Parameters
+    ----------
+
+    racah: 1D float list
+        Slater-Condon-Paramter F_2 and F_4
+
+    Returns
+    -------
+    slater: 1d list
+        The rescaled list of the Racah-Parameter B and C
+    """
+    B = 1 / 49. * slater[0] - 5 / 441. * slater[1]
+    C = 35 / 449. * slater[1]
+    racah = [B, C]
+    return racah
+
 def racah_to_slater(racah):
     """
     Transform the Rach-Parameter B and C to the normalized Slater-Condon-Parameter F^2 and F^4
@@ -785,9 +804,9 @@ def racah_to_slater(racah):
         The rescaled list of the Slater-Condon-Parameter F^2 and F^4
     """
 
-    F4 = racah[1]*441/35.
-    F2 = (racah[0]+5/441.*F4)*49
-    slater = [F2,F4]
+    F4 = racah[1] * 441 / 35.
+    F2 = (racah[0] + 5 / 441. * F4) * 49
+    slater = [F2, F4]
     return slater
 
 def eV_to_cm(eV):
@@ -818,4 +837,72 @@ def cm_to_eV(cm):
 
     eV: float as single or array
     """
-    return cm * 1/8065.54
+    return cm * 1 / 8065.54
+
+def crystalfield_symmetry(sym):
+    """
+    Defining the crystal-field-splitting from
+    1. sperical symmetry to Oh (-Oh = Tg) to D4h
+    2. with real orbital energy in eV
+
+    See reference: Crispy
+    http://www.esrf.eu/computing/scientific/crispy/tutorials/ti_l23_xas.html
+
+    Parameters
+    ----------
+    sym: list in list
+        contains the crystal-field parameters for:
+            Sp: spherical-symmetry
+            Oh: octahedral-symmetry with 10Dq (float)
+            Td: tetrahedal-symmetry with 10D (float)
+            D4h: D4h-symmetry with  dt, ds, dq (float)
+            real: real d-shell energies dxy, dxz, dyz, dx2y2, dz2 (float
+
+    Returns
+    -------
+    2D-complex-matrix of crystal-field but only expressed in real-basis meaning has to transform later
+    """
+
+    cryst = np.zeros((5, 5), dtype=np.complex)
+    if sym[0] == 'Sp' and len(sym) == 1:
+        # Spherical symmetry
+        cryst[0, 0] = 0.  # dxy
+        cryst[1, 1] = 0.  # dxz
+        cryst[2, 2] = 0.  # dyz
+        cryst[3, 3] = 0.  # dx2y2
+        cryst[4, 4] = 0.  # dz2
+    elif sym[0] == 'Oh' and len(sym) == 2:
+        # Octahedral symmetry
+        dq = sym[1] / 10
+        cryst[0, 0] = - 4 * dq  # dxy
+        cryst[1, 1] = - 4 * dq  # dxz
+        cryst[2, 2] = - 4 * dq  # dyz
+        cryst[3, 3] = + 6 * dq  # dx2y2
+        cryst[4, 4] = + 6 * dq  # dz2
+    elif sym[0] == 'Td' and len(sym) == 2:
+        # Tetrahedal symmetry
+        dq = -sym[1] / 10
+        cryst[0, 0] = - 4 * dq  # dxy
+        cryst[1, 1] = - 4 * dq  # dxz
+        cryst[2, 2] = - 4 * dq  # dyz
+        cryst[3, 3] = + 6 * dq  # dx2y2
+        cryst[4, 4] = + 6 * dq  # dz2
+    elif sym[0] == 'D4h' and len(sym) == 4:
+        # D4h symmetry
+        # doi:10.1088/1742-6596/190/1/012143 by Frank deGroot
+        dq, dt, ds = sym[1] / 10., sym[2] / 10., sym[3] / 10.
+        cryst[0, 0] = - 4 * dq + 2 * ds - 1 * dt  # dxy
+        cryst[1, 1] = - 4 * dq - 1 * ds + 4 * dt  # dxz
+        cryst[2, 2] = - 4 * dq - 1 * ds + 4 * dt  # dyz
+        cryst[3, 3] = + 6 * dq + 2 * ds - 1 * dt  # dx2y2
+        cryst[4, 4] = + 6 * dq - 2 * ds - 6 * dt  # dz2
+    elif sym[0] == 'real' and len(sym) == 6:
+        # Real orbital energy, however that has to be validated more carefully
+        cryst[0, 0] = sym[1]  # dxy
+        cryst[1, 1] = sym[2]  # dxz
+        cryst[2, 2] = sym[3]  # dyz
+        cryst[3, 3] = sym[4]  # dx2y2
+        cryst[4, 4] = sym[5]  # dz2
+    else:
+         print("Error in the definition of the crystal-field!")
+    return cryst
